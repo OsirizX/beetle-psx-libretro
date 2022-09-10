@@ -3243,8 +3243,6 @@ static void check_variables(bool startup)
    {
       if (strcmp(var.value, "execute") == 0)
          psx_dynarec = DYNAREC_EXECUTE;
-      else if (strcmp(var.value, "execute_one") == 0)
-         psx_dynarec = DYNAREC_EXECUTE_ONE;
       else if (strcmp(var.value, "run_interpreter") == 0)
          psx_dynarec = DYNAREC_RUN_INTERPRETER;
       else
