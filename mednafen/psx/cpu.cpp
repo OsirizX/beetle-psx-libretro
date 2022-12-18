@@ -3668,6 +3668,7 @@ void PS_CPU::enable_ram(struct lightrec_state *state, _Bool enable)
 }
 
 struct lightrec_ops PS_CPU::ops = {
+	.cop2_notify = NULL,
 	.cop2_op = cop2_op,
 	.enable_ram = enable_ram,
 };

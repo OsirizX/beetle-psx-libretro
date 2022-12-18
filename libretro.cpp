@@ -52,6 +52,14 @@ retro_input_state_t dbg_input_state_cb = 0;
 #ifdef HAVE_WIN_SHM
 #include <windows.h>
 #endif
+
+#if defined(__PS3__)
+#include <sys/memory.h>
+#include <sys/process.h>
+extern "C" {
+#include <ps3mapi_ps3_lib.h>
+}
+#endif
 #endif /* HAVE_LIGHTREC */
 
 //Fast Save States exclude string labels from variables in the savestate, and are at least 20% faster.
@@ -109,6 +117,17 @@ uint8 *psx_scratch = NULL;
 uint8 *lightrec_codebuffer = NULL;
 #if defined(HAVE_ASHMEM)
 int memfd;
+#endif
+#if defined(__PS3__)
+static sys_mem_addr_t base_addr;
+static sys_mem_addr_t psx_mem_addr;
+static sys_mem_addr_t psx_scratch_addr;
+static sys_mem_addr_t psx_bios_addr;
+static sys_mem_id_t psx_mem_id;
+static sys_mem_id_t psx_scratch_id;
+static sys_mem_id_t psx_bios_id;
+
+static uint64_t page_table[2] = {0, 0};
 #endif
 #endif
 
@@ -1761,6 +1780,57 @@ static void * mmap_huge(void *addr, size_t length, int prot, int flags,
 #define NUM_MEM 1
 #endif
 
+#if defined(__PS3__)
+#define NUM_MEM_PS3 4
+int lightrec_init_mmap(bool hugetlb)
+{
+  u32 psx_mem_size = RAM_SIZE;
+  u32 psx_scratch_size = SCRATCH_SIZE;
+  u32 psx_bios_size = BIOS_SIZE;
+
+  base_addr = 0x0;
+  sysMMapperAllocateAddress(0x20000000, 0x40f, 0x10000000, &base_addr);
+  sysMMapperAllocateMemory(0x200000, SYS_MEMORY_PAGE_SIZE_1M, &psx_mem_id);
+  sysMMapperAllocateMemory(0x100000, SYS_MEMORY_PAGE_SIZE_1M, &psx_scratch_id);
+  sysMMapperAllocateMemory(0x100000, SYS_MEMORY_PAGE_SIZE_1M, &psx_bios_id);
+
+  for (int i = 0; i < NUM_MEM_PS3; i++) {
+    sysMMapperSearchAndMap(base_addr, psx_mem_id, SYS_MEMORY_PROT_READ_WRITE, &psx_mem_addr);
+    if (i == 0) {
+      psx_mem = (uint8_t*)psx_mem_addr;
+      printf("psx_mem 0x%llx 0x%llx\n", psx_mem, psx_mem_addr);
+    }
+  }
+
+  ps3mapi_process_page_allocate(sysProcessGetPid(), LIGHTREC_CODEBUFFER_SIZE, PAGE_SIZE_AUTO, 0x2F, 1, page_table);
+  lightrec_codebuffer = (uint8_t *)page_table[0];
+
+  sysMMapperSearchAndMap(base_addr, psx_bios_id, SYS_MEMORY_PROT_READ_WRITE, &psx_bios_addr);
+  psx_bios = (uint8_t*)psx_bios_addr;
+  printf("psx_bios 0x%llx 0x%llx\n", psx_bios, psx_bios_addr);
+
+  sysMMapperSearchAndMap(base_addr, psx_scratch_id, SYS_MEMORY_PROT_READ_WRITE, &psx_scratch_addr);
+  psx_scratch = (uint8_t*)psx_scratch_addr;
+  printf("psx_scratch 0x%llx 0x%llx\n", psx_scratch, psx_scratch_addr);
+
+  return NUM_MEM_PS3;
+}
+
+
+void lightrec_free_mmap()
+{
+  sys_mem_id_t ret_id;
+  sysMMapperUnmapMemory(psx_mem_addr, &ret_id);
+  sysMMapperFreeMemory(ret_id);
+  sysMMapperUnmapMemory(psx_scratch_addr, &ret_id);
+  sysMMapperFreeMemory(ret_id);
+  sysMMapperUnmapMemory(psx_bios_addr, &ret_id);
+  sysMMapperFreeMemory(ret_id);
+  sysMMapperFreeAddress(base_addr);
+  if (page_table[0] > 0 && page_table[1] > 0)
+    ps3mapi_process_page_free(sysProcessGetPid(), 0x2F, page_table);
+}
+#else
 int lightrec_init_mmap(bool hugetlb)
 {
 	int r = 0, i, j;
@@ -1973,6 +2043,7 @@ void lightrec_free_mmap()
 	close(memfd);
 #endif
 }
+#endif /* __PS3__ */
 #endif /* HAVE_LIGHTREC */
 
 /* LED interface */

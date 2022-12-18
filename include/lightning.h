@@ -1,5 +1,5 @@
 
-#define HAVE_MMAP 1
+#define HAVE_MMAP 0
 #include <lightning-actual.h>
 
 

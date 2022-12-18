@@ -22,6 +22,7 @@
 #include "mednafen.h"
 #include "mednafen-endian.h"
 
+extern "C" {
 void Endian_A16_Swap(void *src, uint32 nelements)
 {
  uint32 i;
@@ -117,6 +118,7 @@ void Endian_A64_NE_BE(void *src, uint32 nelements)
  Endian_A64_Swap(src, nelements);
  #endif
 }
+}
 
 void Endian_V_NE_LE(void* p, size_t len)
 {
@@ -130,4 +132,99 @@ void Endian_V_NE_BE(void* p, size_t len)
  #ifdef LSB_FIRST
  std::reverse((uint8*)p, (uint8*)p + len);
  #endif
+}
+
+extern "C" {
+void Endian_A16_LE_to_NE(void *src, uint32_t nelements)
+{
+#ifdef MSB_FIRST
+   uint32_t i;
+   uint8_t *nsrc = (uint8_t *)src;
+
+   for(i = 0; i < nelements; i++)
+   {
+      uint8_t tmp = nsrc[i * 2];
+
+      nsrc[i * 2] = nsrc[i * 2 + 1];
+      nsrc[i * 2 + 1] = tmp;
+   }
+#endif
+}
+
+void Endian_A32_LE_to_NE(void *src, uint32_t nelements)
+{
+#ifdef MSB_FIRST
+   uint32_t i;
+   uint8_t *nsrc = (uint8_t *)src;
+
+   for(i = 0; i < nelements; i++)
+   {
+      uint8_t tmp1 = nsrc[i * 4];
+      uint8_t tmp2 = nsrc[i * 4 + 1];
+
+      nsrc[i * 4] = nsrc[i * 4 + 3];
+      nsrc[i * 4 + 1] = nsrc[i * 4 + 2];
+
+      nsrc[i * 4 + 2] = tmp2;
+      nsrc[i * 4 + 3] = tmp1;
+   }
+#endif
+}
+
+void Endian_A64_LE_to_NE(void *src, uint32_t nelements)
+{
+#ifdef MSB_FIRST
+   uint32_t i;
+   uint8_t *nsrc = (uint8_t *)src;
+
+   for(i = 0; i < nelements; i++)
+   {
+      unsigned z;
+      uint8_t *base = &nsrc[i * 8];
+
+      for(z = 0; z < 4; z++)
+      {
+         uint8_t tmp = base[z];
+
+         base[z] = base[7 - z];
+         base[7 - z] = tmp;
+      }
+   }
+#endif
+}
+
+void FlipByteOrder(uint8_t *src, uint32_t count)
+{
+   uint8_t *start=src;
+   uint8_t *end=src+count-1;
+
+   if((count&1) || !count)        return;         /* This shouldn't happen. */
+
+   count >>= 1;
+
+   while(count--)
+   {
+      uint8_t tmp;
+
+      tmp=*end;
+      *end=*start;
+      *start=tmp;
+      end--;
+      start++;
+   }
+}
+
+void Endian_V_LE_to_NE(void *src, uint32_t bytesize)
+{
+#ifdef MSB_FIRST
+   FlipByteOrder((uint8_t *)src, bytesize);
+#endif
+}
+
+void Endian_V_NE_to_LE(void *src, uint32_t bytesize)
+{
+#ifdef MSB_FIRST
+   FlipByteOrder((uint8_t *)src, bytesize);
+#endif
+}
 }

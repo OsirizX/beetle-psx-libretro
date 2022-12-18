@@ -1711,6 +1711,18 @@ _emit_code(jit_state_t *_jit)
 #endif
 		xcallr(rn(node->u.w), !!(node->flag & jit_flag_varargs));
 		break;
+	    case jit_code_callr2:
+#if _CALL_SYSV
+#  define xcallr(u, v)		callr2(u, v)
+#  define xcalli_p(u, v)	calli_p(u, v)
+#  define xcalli(u, v)		calli(u, v)
+#else
+#  define xcallr(u, v)		callr2(u)
+#  define xcalli_p(u, v)	calli_p(u)
+#  define xcalli(u, v)		calli(u)
+#endif
+		xcallr(rn(node->u.w), !!(node->flag & jit_flag_varargs));
+		break;
 	    case jit_code_calli:
 		value = !!(node->flag & jit_flag_varargs);
 		if (node->flag & jit_flag_node) {
@@ -1901,7 +1913,12 @@ _emit_code(jit_state_t *_jit)
 	patch_at(_jitc->patches.ptr[offset].inst, word);
     }
 
+#if defined(__PS3__)
+    DCFlushRange(_jit->code.ptr, _jit->code.length);
+    ICInvalidateRange(_jit->code.ptr, _jit->code.length);
+#else
     jit_flush(_jit->code.ptr, _jit->pc.uc);
+#endif
 
     return (_jit->code.ptr);
 }
@@ -1914,7 +1931,7 @@ _emit_code(jit_state_t *_jit)
 void
 jit_flush(void *fptr, void *tptr)
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && !defined(__PS3__)
     jit_word_t		f, t, s;
 
     s = sysconf(_SC_PAGE_SIZE);
@@ -1977,3 +1994,42 @@ _patch(jit_state_t *_jit, jit_word_t instr, jit_node_t *node)
     _jitc->patches.ptr[_jitc->patches.offset].node = node;
     ++_jitc->patches.offset;
 }
+
+#if defined(__PS3__)
+void DCFlushRange(void* startaddr, unsigned int len){
+  if(len == 0) return;
+  __asm__ volatile (
+    "clrlwi.  5, %0, 27\n"
+    "beq  1f\n"
+    "addi %1, %1, 0x20\n"
+    "1:\n"
+    "addi %1, %1, 0x1f\n"
+    "srwi %1, %1, 5\n"
+    "mtctr  %1\n"
+    "2:\n"
+    "dcbf 0, %0\n"
+    "addi %0, %0, 0x20\n"
+    "bdnz 2b\n"
+    "sync\n"
+    : : "b" (startaddr), "b" (len) : "5", "memory" );
+}
+
+void ICInvalidateRange(void* startaddr, unsigned int len)  {
+  if(len == 0) return;
+  __asm__ volatile (
+    "clrlwi.  5, %0, 27\n"
+    "beq  1f\n"
+    "addi %1, %1, 0x20\n"
+    "1:\n"
+    "addi %1, %1, 0x1f\n"
+    "srwi %1, %1, 5\n"
+    "mtctr  %1\n"
+    "2:\n"
+    "icbi 0, %0\n"
+    "addi %0, %0, 0x20\n"
+    "bdnz 2b\n"
+    "sync\n"
+    "isync\n"
+    : : "b" (startaddr), "b" (len) : "5", "memory" );
+}
+#endif

@@ -376,6 +376,12 @@ extern "C"
 }
 #endif
 
+#if defined(__PS3__)
+extern "C" {
+GLAPI void APIENTRY glGetIntegerv(GLenum pname, GLint *params);
+GLAPI void APIENTRY glClearStencil(GLint s);
+}
+#endif
 
 #ifdef DEBUG
 static void get_error(const char *msg)

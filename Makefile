@@ -250,6 +250,11 @@ else ifeq ($(platform), psl1ght)
    CXX     = $(PS3DEV)/ppu/bin/ppu-g++$(EXE_EXT)
    AR      = $(PS3DEV)/ppu/bin/ppu-ar$(EXE_EXT)
    ENDIANNESS_DEFINES := -DMSB_FIRST
+   FLAGS += -DARCH_POWERPC_ALTIVEC -DBLARGG_BIG_ENDIAN=1 -D__ppc__ -D__PS3__ -DHAVE_MMAP=0
+   EXTRA_INCLUDES += -Ideps/mman
+   THREADED_RECOMPILER := 0
+   NEED_THREADING := 0
+   HAVE_LIGHTREC := 1
    STATIC_LINKING = 1
 
 # PSP

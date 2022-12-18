@@ -73,7 +73,11 @@ const unsigned int mode_write = 1;
 const unsigned int mode_read = 2;
 const unsigned int mode_fail = 3;
 
+#if defined(__PS3__)
+PGXP_value vertexCache[1][1];
+#else
 PGXP_value vertexCache[0x800 * 2][0x800 * 2];
+#endif
 
 unsigned int baseID = 0;
 unsigned int lastID = 0;
